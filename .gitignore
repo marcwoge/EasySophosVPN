@@ -6,3 +6,4 @@ obj/
 *.rsuser
 TestResults/
 *.nupkg
+dist/
