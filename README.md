@@ -26,6 +26,24 @@ dotnet run --project .\SophosVpnMiniTool\SophosVpnMiniTool.csproj
 
 Alternativ kann die Solution `SophosVpnMiniTool.sln` direkt in Visual Studio geoeffnet werden.
 
+## Release und Code-Signing
+
+Ein Self-contained Single-File-Release fuer Windows x64 kann so erstellt werden:
+
+```powershell
+dotnet publish .\SophosVpnMiniTool\SophosVpnMiniTool.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true -o .\dist\SophosVpnMiniTool-win-x64
+```
+
+Damit Microsoft Edge, Windows SmartScreen und Windows Explorer den Herausgeber verifizieren koennen, muss die erzeugte `SophosVpnMiniTool.exe` mit einem vertrauenswuerdigen Code-Signing-Zertifikat signiert werden. Reine Assembly-Metadaten wie `Company` oder `Product` setzen nur die Dateieigenschaften, ersetzen aber keine digitale Signatur.
+
+Beispiel mit SignTool und installiertem Code-Signing-Zertifikat:
+
+```powershell
+signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /n "Name im Zertifikat" .\dist\SophosVpnMiniTool-win-x64\SophosVpnMiniTool.exe
+```
+
+Fuer oeffentliche Verteilung ist ein Code-Signing-Zertifikat einer vertrauenswuerdigen Zertifizierungsstelle sinnvoll. Ein selbstsigniertes Zertifikat eignet sich nur fuer interne Umgebungen, wenn das Zertifikat auf den Zielgeraeten als vertrauenswuerdig verteilt wird.
+
 ## Kurzanleitung
 
 1. `sccli.exe`-Pfad pruefen oder ueber `Suchen...` auswaehlen.
