@@ -38,6 +38,24 @@ Alternativ kann die Solution `SophosVpnMiniTool.sln` direkt in Visual Studio geo
 
 Mit `Verbindungen anzeigen` oder `Status aktualisieren` wird `sccli.exe list -d` ausgefuehrt. Wenn die Ausgabe einen Verbindungsstatus erkennen laesst, aktualisiert das Tool die Ampelanzeige.
 
+## System-Tray und Autostart
+
+Beim Schliessen des Fensters wird die Anwendung in den Windows-Infobereich minimiert und laeuft weiter. Ueber das Tray-Menue sind diese Aktionen verfuegbar:
+
+- `Oeffnen`
+- `Verbinden...` oeffnet das Fenster und setzt den Fokus auf das Token-Feld
+- `Trennen`
+- `Status aktualisieren`
+- `Beenden`
+
+Der Windows-Autostart kann in der Anwendung ueber `Mit Windows starten` aktiviert werden. Dafuer wird ein Eintrag im Benutzerkontext unter folgendem Registry-Pfad geschrieben:
+
+```text
+HKCU\Software\Microsoft\Windows\CurrentVersion\Run
+```
+
+Dafuer sind keine Administratorrechte erforderlich.
+
 ## Speicherung
 
 Konfiguration:

@@ -9,6 +9,7 @@ internal sealed class MainForm : Form
     private readonly ConfigStore _configStore = new();
     private readonly PasswordStore _passwordStore = new();
     private readonly SophosCliService _sophosCliService = new();
+    private readonly AutostartService _autostartService = new();
 
     private readonly TextBox _sccliPathTextBox = new();
     private readonly TextBox _connectionNameTextBox = new();
@@ -23,8 +24,13 @@ internal sealed class MainForm : Form
     private readonly Button _listButton = new();
     private readonly Button _statusButton = new();
     private readonly Button _saveCredentialsButton = new();
+    private readonly CheckBox _autostartCheckBox = new();
+    private readonly NotifyIcon _trayIcon = new();
+    private readonly ContextMenuStrip _trayMenu = new();
 
     private AppConfig _config = new();
+    private bool _isExitRequested;
+    private bool _isLoadingSettings;
 
     public MainForm()
     {
@@ -33,7 +39,11 @@ internal sealed class MainForm : Form
         StartPosition = FormStartPosition.CenterScreen;
 
         BuildUi();
+        BuildTrayIcon();
         LoadSettings();
+
+        FormClosing += MainForm_FormClosing;
+        Resize += MainForm_Resize;
     }
 
     private void BuildUi()
@@ -76,6 +86,15 @@ internal sealed class MainForm : Form
 
         AddTextRow(inputGrid, "Aktueller Token", _tokenTextBox);
         _tokenTextBox.MaxLength = 6;
+
+        _autostartCheckBox.Text = "Mit Windows starten";
+        _autostartCheckBox.AutoSize = true;
+        _autostartCheckBox.CheckedChanged += AutostartCheckBox_CheckedChanged;
+        inputGrid.Controls.Add(new Label(), 0, inputGrid.RowCount);
+        inputGrid.Controls.Add(_autostartCheckBox, 1, inputGrid.RowCount);
+        inputGrid.SetColumnSpan(_autostartCheckBox, 2);
+        inputGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        inputGrid.RowCount++;
 
         var actions = new FlowLayoutPanel
         {
@@ -128,6 +147,40 @@ internal sealed class MainForm : Form
         Controls.Add(root);
     }
 
+    private void BuildTrayIcon()
+    {
+        var openItem = new ToolStripMenuItem("Oeffnen", null, (_, _) => ShowMainWindow());
+        var connectItem = new ToolStripMenuItem("Verbinden...", null, (_, _) =>
+        {
+            ShowMainWindow();
+            _tokenTextBox.Focus();
+        });
+        var disconnectItem = new ToolStripMenuItem("Trennen", null, DisconnectButton_Click);
+        var statusItem = new ToolStripMenuItem("Status aktualisieren", null, StatusButton_Click);
+        var exitItem = new ToolStripMenuItem("Beenden", null, (_, _) =>
+        {
+            _isExitRequested = true;
+            _trayIcon.Visible = false;
+            Close();
+        });
+
+        _trayMenu.Items.AddRange(new ToolStripItem[]
+        {
+            openItem,
+            connectItem,
+            disconnectItem,
+            statusItem,
+            new ToolStripSeparator(),
+            exitItem
+        });
+
+        _trayIcon.Text = "SophosVpnMiniTool";
+        _trayIcon.Icon = SystemIcons.Application;
+        _trayIcon.ContextMenuStrip = _trayMenu;
+        _trayIcon.Visible = true;
+        _trayIcon.DoubleClick += (_, _) => ShowMainWindow();
+    }
+
     private void AddPathRow(TableLayoutPanel grid)
     {
         AddLabel(grid, "sccli.exe-Pfad");
@@ -165,15 +218,19 @@ internal sealed class MainForm : Form
 
     private void LoadSettings()
     {
+        _isLoadingSettings = true;
         _config = _configStore.Load();
         _sccliPathTextBox.Text = _config.SccliPath;
         _connectionNameTextBox.Text = _config.ConnectionName;
         _usernameTextBox.Text = _config.Username;
         _passwordTextBox.Text = _passwordStore.HasPassword ? PasswordPlaceholder : string.Empty;
+        _autostartCheckBox.Checked = _autostartService.IsEnabled();
+        _isLoadingSettings = false;
 
         AppendLog("Einstellungen geladen.");
         AppendLog($"Konfigurationsdatei: {AppPaths.ConfigFilePath}");
         AppendLog($"Passwortdatei vorhanden: {(_passwordStore.HasPassword ? "ja" : "nein")}");
+        AppendLog($"Windows-Autostart: {(_autostartCheckBox.Checked ? "aktiv" : "inaktiv")}");
     }
 
     private void BrowseButton_Click(object? sender, EventArgs e)
@@ -203,6 +260,7 @@ internal sealed class MainForm : Form
         try
         {
             SaveConfigFromUi();
+            SaveAutostartFromUi();
 
             var passwordText = _passwordTextBox.Text;
             if (passwordText == PasswordPlaceholder && _passwordStore.HasPassword)
@@ -224,6 +282,27 @@ internal sealed class MainForm : Form
         catch (Exception ex)
         {
             AppendLog($"Speichern fehlgeschlagen: {ex.Message}");
+        }
+    }
+
+    private void AutostartCheckBox_CheckedChanged(object? sender, EventArgs e)
+    {
+        if (_isLoadingSettings)
+        {
+            return;
+        }
+
+        try
+        {
+            SaveAutostartFromUi();
+            AppendLog($"Windows-Autostart wurde {(_autostartCheckBox.Checked ? "aktiviert" : "deaktiviert")}.");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Windows-Autostart konnte nicht geaendert werden: {ex.Message}");
+            _isLoadingSettings = true;
+            _autostartCheckBox.Checked = _autostartService.IsEnabled();
+            _isLoadingSettings = false;
         }
     }
 
@@ -340,6 +419,11 @@ internal sealed class MainForm : Form
         _configStore.Save(_config);
     }
 
+    private void SaveAutostartFromUi()
+    {
+        _autostartService.SetEnabled(_autostartCheckBox.Checked);
+    }
+
     private bool ValidateCommonInputs(bool requirePassword)
     {
         SaveConfigFromUi();
@@ -410,6 +494,7 @@ internal sealed class MainForm : Form
         _listButton.Enabled = enabled;
         _statusButton.Enabled = enabled;
         _saveCredentialsButton.Enabled = enabled;
+        _autostartCheckBox.Enabled = enabled;
     }
 
     private void AppendProcessResult(ProcessResult result, params string?[] secrets)
@@ -517,5 +602,47 @@ internal sealed class MainForm : Form
     {
         var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         _logTextBox.AppendText($"[{timestamp}] {message}{Environment.NewLine}");
+    }
+
+    private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
+    {
+        if (_isExitRequested)
+        {
+            return;
+        }
+
+        e.Cancel = true;
+        Hide();
+        _trayIcon.ShowBalloonTip(
+            1500,
+            "SophosVpnMiniTool",
+            "Das Tool laeuft weiter im Infobereich.",
+            ToolTipIcon.Info);
+    }
+
+    private void MainForm_Resize(object? sender, EventArgs e)
+    {
+        if (WindowState == FormWindowState.Minimized)
+        {
+            Hide();
+        }
+    }
+
+    private void ShowMainWindow()
+    {
+        Show();
+        WindowState = FormWindowState.Normal;
+        Activate();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _trayIcon.Dispose();
+            _trayMenu.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 }
