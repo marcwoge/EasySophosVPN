@@ -1,10 +1,57 @@
 # SophosVpnMiniTool
+Wer kennt es nicht, Sophos Connect mit einem TOTP-Token, Zugangsdaten werden nicht gespeichert, der Token ändert sich und es muss alles erneut eingegeben werden. 
 
 Kleines Windows-Desktop-Tool zur Steuerung einer Sophos-Connect-VPN-Verbindung ueber die vorhandene `sccli.exe`.
 
 Die Anwendung speichert das normale VPN-Passwort lokal verschluesselt per Windows-DPAPI. Beim Verbinden wird nur der aktuelle Microsoft-Authenticator-TOTP-Token eingegeben. Das Tool kombiniert intern `Passwort + Token` und uebergibt diesen Wert direkt an Sophos Connect.
 
+![Alt Text](img/Screenshot.png "Screenshot EasySophosVPN")
+
 ## Voraussetzungen
+
+- Windows
+- Sophos Connect muss installiert sein
+- Standardpfad der CLI:
+
+```text
+C:\Program Files (x86)\Sophos\Connect\sccli.exe
+```
+
+Die Sophos-Verbindung muss so konfiguriert sein, dass sie Passwort und Token als ein kombiniertes Passwort akzeptiert. Das Tool funktioniert nicht, wenn Sophos Connect eine separate OTP-Abfrage erzwingt.
+
+
+## Kurzanleitung
+
+1. `sccli.exe`-Pfad pruefen oder ueber `Suchen...` auswaehlen.
+2. Verbindungsname eintragen.
+3. Benutzername eintragen.
+4. VPN-Passwort ohne Token eintragen und `Zugangsdaten speichern/aendern` klicken.
+5. Aktuellen 6-stelligen Token eingeben.
+6. `Verbinden` klicken.
+7. Zum Trennen `Trennen` klicken.
+
+Mit `Verbindungen anzeigen` oder `Status aktualisieren` wird `sccli.exe list -d` ausgefuehrt. Wenn die Ausgabe einen Verbindungsstatus erkennen laesst, aktualisiert das Tool die Ampelanzeige.
+
+## System-Tray und Autostart
+
+Beim Schliessen des Fensters wird die Anwendung in den Windows-Infobereich minimiert und laeuft weiter. Ueber das Tray-Menue sind diese Aktionen verfuegbar:
+
+- `Oeffnen`
+- `Verbinden...` oeffnet das Fenster und setzt den Fokus auf das Token-Feld
+- `Trennen`
+- `Status aktualisieren`
+- `Beenden`
+
+Der Windows-Autostart kann in der Anwendung ueber `Mit Windows starten` aktiviert werden. Dafuer wird ein Eintrag im Benutzerkontext unter folgendem Registry-Pfad geschrieben:
+
+```text
+HKCU\Software\Microsoft\Windows\CurrentVersion\Run
+```
+
+Dafuer sind keine Administratorrechte erforderlich.
+
+
+## Voraussetzungen zum Verändern
 
 - Windows
 - .NET 8 SDK zum Bauen
@@ -44,35 +91,6 @@ signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /n "Name i
 
 Fuer oeffentliche Verteilung ist ein Code-Signing-Zertifikat einer vertrauenswuerdigen Zertifizierungsstelle sinnvoll. Ein selbstsigniertes Zertifikat eignet sich nur fuer interne Umgebungen, wenn das Zertifikat auf den Zielgeraeten als vertrauenswuerdig verteilt wird.
 
-## Kurzanleitung
-
-1. `sccli.exe`-Pfad pruefen oder ueber `Suchen...` auswaehlen.
-2. Verbindungsname eintragen.
-3. Benutzername eintragen.
-4. VPN-Passwort ohne Token eintragen und `Zugangsdaten speichern/aendern` klicken.
-5. Aktuellen 6-stelligen Token eingeben.
-6. `Verbinden` klicken.
-7. Zum Trennen `Trennen` klicken.
-
-Mit `Verbindungen anzeigen` oder `Status aktualisieren` wird `sccli.exe list -d` ausgefuehrt. Wenn die Ausgabe einen Verbindungsstatus erkennen laesst, aktualisiert das Tool die Ampelanzeige.
-
-## System-Tray und Autostart
-
-Beim Schliessen des Fensters wird die Anwendung in den Windows-Infobereich minimiert und laeuft weiter. Ueber das Tray-Menue sind diese Aktionen verfuegbar:
-
-- `Oeffnen`
-- `Verbinden...` oeffnet das Fenster und setzt den Fokus auf das Token-Feld
-- `Trennen`
-- `Status aktualisieren`
-- `Beenden`
-
-Der Windows-Autostart kann in der Anwendung ueber `Mit Windows starten` aktiviert werden. Dafuer wird ein Eintrag im Benutzerkontext unter folgendem Registry-Pfad geschrieben:
-
-```text
-HKCU\Software\Microsoft\Windows\CurrentVersion\Run
-```
-
-Dafuer sind keine Administratorrechte erforderlich.
 
 ## Speicherung
 
