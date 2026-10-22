@@ -54,7 +54,7 @@ Dafuer sind keine Administratorrechte erforderlich.
 ## Voraussetzungen zum Verändern
 
 - Windows
-- .NET 8 SDK zum Bauen
+- .NET 10 SDK zum Bauen
 - Sophos Connect muss installiert sein
 - Standardpfad der CLI:
 
